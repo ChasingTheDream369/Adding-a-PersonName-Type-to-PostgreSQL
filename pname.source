@@ -1,0 +1,173 @@
+---------------------------------------------------------------------------
+--
+-- pname.sql-
+--    This file shows how to create a new user-defined type and how to
+--    use this new type.
+--
+--
+-- Portions Copyright (c) 1996-2021, PostgreSQL Global Development Group
+-- Portions Copyright (c) 1994, Regents of the University of California
+--
+-- testing/pname.source or src/tutorial/pname.source or comp9315/assignment1/pname.source.
+--
+---------------------------------------------------------------------------
+
+-----------------------------
+-- Creating a new type:
+--	We are going to create a new type called 'pname' which represents
+--	pname numbers.
+--	A user-defined type must have an input and an output function, and
+--	optionally can have binary input and output functions.  All of these
+--	are usually user-defined C functions.
+-----------------------------
+
+-- Assume the user defined functions are in _OBJWD_/pname$DLSUFFIX
+-- (we do not want to assume this is in the dynamic loader search path).
+-- Look at $PWD/pname.c for the source.  Note that we declare all of
+-- them as STRICT, so we do not need to cope with NULL inputs in the
+-- C code.  We also mark them IMMUTABLE, since they always return the
+-- same outputs given the same inputs.
+
+-- the input function 'pname_in' takes a null-terminated string (the
+-- textual representation of the type) and turns it into the internal
+-- (in memory) representation. You will get a message telling you 'pname'
+-- does not exist yet but that's okay.
+
+-- now, we can create the type. The internallength specifies the size of the
+-- memory block required to hold the type (we need two 8-byte doubles).
+
+CREATE OR REPLACE FUNCTION PersonName_in (cstring)
+   RETURNS PersonName
+   AS '_OBJWD_/pname', 'PersonName_in'
+   LANGUAGE C IMMUTABLE STRICT;
+
+-- the output function 'pname_out' takes the internal representation and
+-- converts it into the textual representation.
+
+CREATE OR REPLACE FUNCTION PersonName_out (PersonName)
+   RETURNS cstring
+   AS '_OBJWD_/pname', 'PersonName_out'
+   LANGUAGE C IMMUTABLE STRICT;
+
+CREATE TYPE PersonName (
+   internallength = VARIABLE,
+   input = PersonName_in,
+   output = PersonName_out
+);
+
+-----------------------------
+-- Creating an operator for the new type:
+--	Let's define an add operator for PersonName types. Since POSTGRES
+--	supports function overloading, we'll use + as the add operator.
+--	(Operator names can be reused with different numbers and types of
+--	arguments.)
+-----------------------------
+
+CREATE OR REPLACE FUNCTION Pname_lessthan(PersonName, PersonName) 
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_lessthan' 
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Pname_lessthanEquals(PersonName, PersonName) 
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_lessthanEquals' 
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Pname_equal(PersonName, PersonName) 
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_equal' 
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Pname_greaterthanEquals(PersonName, PersonName) 
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_greaterthanEquals'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Person_hash(PersonName) 
+RETURNS int4
+AS '_OBJWD_/pname', 'Person_hash'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Person_comp(PersonName, PersonName) 
+RETURNS int4
+AS '_OBJWD_/pname', 'Person_comp'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Pname_greaterthan(PersonName, PersonName) 
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_greaterthan' 
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION Pname_notequal(PersonName, PersonName)
+RETURNS bool
+AS '_OBJWD_/pname', 'Pname_notequal'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OPERATOR < (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_lessthan,
+   hashes, merges,    commutator = > , negator = >= ,
+   restrict = scalarltsel, join = scalarltjoinsel
+);
+
+CREATE OPERATOR <= (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_lessthanEquals,
+   hashes, merges,  commutator = >= , negator = > ,
+   restrict = scalarlesel, join = scalarlejoinsel
+);
+
+CREATE OPERATOR = (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_equal,
+   hashes, merges, commutator = = , negator = <>, 
+   restrict = eqsel, join = eqjoinsel
+);
+
+CREATE OPERATOR >= (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_greaterthanEquals,
+   hashes, merges,  commutator = <= , negator = < ,
+   restrict = scalargesel, join = scalargejoinsel
+);
+
+CREATE OPERATOR > (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_greaterthan, 
+   hashes, merges, commutator = < , negator = <= ,
+   restrict = scalargtsel, join = scalargtjoinsel
+);
+
+CREATE OPERATOR <> (
+   leftarg = PersonName, rightarg = PersonName, procedure = Pname_notequal, 
+   hashes, merges
+);
+
+CREATE OPERATOR CLASS Person_Hash_cmp
+DEFAULT FOR TYPE PersonName USING hash AS
+   OPERATOR        1      =,
+   FUNCTION        1      Person_hash(PersonName);
+
+CREATE OPERATOR CLASS Person_comp_abs
+DEFAULT FOR TYPE PersonName USING btree AS
+        OPERATOR        1       < ,
+        OPERATOR        2       <= ,
+        OPERATOR        3       >= ,
+        OPERATOR        4       > ,
+        OPERATOR        5       =,
+        FUNCTION        1       Person_comp(PersonName, PersonName);
+
+
+------------------------------------
+-- Specefic functions on the PersonName type.
+-- family(PersonName), show(PersonName), Given(PersonName)
+
+CREATE OR REPLACE FUNCTION family (PersonName)
+   RETURNS text
+   AS '_OBJWD_/pname', 'family'
+   LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION given (PersonName)
+   RETURNS text
+   AS '_OBJWD_/pname', 'given'
+   LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION show (PersonName)
+   RETURNS text
+   AS '_OBJWD_/pname', 'show'
+   LANGUAGE C IMMUTABLE STRICT;
