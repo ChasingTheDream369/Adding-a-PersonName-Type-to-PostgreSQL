@@ -59,18 +59,18 @@ To get started with using the `PersonName` type in your PostgreSQL database, fol
    
 2. Build and install the extension:
 
-  ```
-  cd Adding-a-PersonName-Type-to-PostgreSQL
-  make && make install
-  ```
+   ```
+   cd Adding-a-PersonName-Type-to-PostgreSQL
+   make && make install
+   ```
 
 3. Create a new PostgreSQL database or use an existing one.
 
-Load the extension in your database:
+   Load the extension in your database:
 
-    ```
-    CREATE EXTENSION personname;
-    ```
+   ```
+   CREATE EXTENSION personname;
+   ```
     
 Now you're ready to use the PersonName type in your PostgreSQL database!
 
@@ -78,9 +78,7 @@ Now you're ready to use the PersonName type in your PostgreSQL database!
 
 Here's a quick example of how to use the PersonName type in your SQL queries:
 
-```
-sql
-
+```sql
 -- Create a table with a PersonName column
 CREATE TABLE people (
     id serial PRIMARY KEY,
